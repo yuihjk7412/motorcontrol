@@ -21,7 +21,7 @@ private:
 	/* data */
 	u_int8_t ID; 
 public:
-	motor(/* args */);
+	motor(u_int8_t id);
 	~motor();
 	int Initialize_Can();
 	int Send_Command(VCI_CAN_OBJ * command);
@@ -36,39 +36,39 @@ motor::motor(u_int8_t id)
 int motor::Initialize_Can()
 {
 	VCI_CAN_OBJ command;
-	command.ID = ID;
+	command.ID = (u_int8_t)0;
 	command.SendType = 1;
 	command.RemoteFlag = 0;
 	command.ExternFlag = 0;
 	command.DataLen = 2;
-	BYTE Data[command.DataLen];
-	
+	BYTE Data[command.DataLen] = {0x01, 0x00};
+	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
+	return(Send_Command(&command));
 }
 
 int motor::Send_Command(VCI_CAN_OBJ * command)
 {
 	if(VCI_Transmit(VCI_USBCAN2, 0, 0, command, 1) == 1)
+	{
+		printf("Index:%04d  ",count);count++;
+		printf("CAN1 TX ID:0x%08X",command->ID);
+		if(command->ExternFlag==0) printf(" Standard ");
+		if(command->ExternFlag==1) printf(" Extend   ");
+		if(command->RemoteFlag==0) printf(" Data   ");
+		if(command->RemoteFlag==1) printf(" Remote ");
+		printf("DLC:0x%02X",command->DataLen);
+		printf(" data:0x");
+		for(int i=0;i<command->DataLen;i++)
 		{
-			printf("Index:%04d  ",count);count++;
-			printf("CAN1 TX ID:0x%08X",command->ID);
-			if(command->ExternFlag==0) printf(" Standard ");
-			if(command->ExternFlag==1) printf(" Extend   ");
-			if(command->RemoteFlag==0) printf(" Data   ");
-			if(command->RemoteFlag==1) printf(" Remote ");
-			printf("DLC:0x%02X",command->DataLen);
-			printf(" data:0x");
-
-			for(i=0;i<command->DataLen;i++)
-			{
-				printf(" %02X",command->Data[i]);
-			}
-
-			printf("\n");
+			printf(" %02X",command->Data[i]);
 		}
-		else
-		{
-			break;
-		}
+		printf("\n");
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 motor::~motor()
@@ -264,6 +264,9 @@ main()
 		VCI_CloseDevice(VCI_USBCAN2,0);
 
 	}
+
+	motor motor1(1);
+	motor1.Initialize_Can();
 	//需要发送的帧，结构体设置
 	VCI_CAN_OBJ send[1];
 	send[0].ID=0;
