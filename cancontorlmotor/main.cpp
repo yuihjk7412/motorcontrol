@@ -19,15 +19,22 @@ class motor
 {
 private:
 	/* data */
-	u_int8_t ID; 
+	u_int32_t ID; 
 public:
-	motor(u_int8_t id);
+	motor(u_int32_t id);
 	~motor();
-	int Initialize_Can();
 	int Send_Command(VCI_CAN_OBJ * command);
+	int Initialize_Can();
+	int Motor_Disable();
+	int Motor_Mode(u_int8_t mode);
+	int Motor_Enable();
+	int Motor_Speed(int32_t speed);
+	int Motor_Begin();
+	int Motor_Stop();
+	
 };
 
-motor::motor(u_int8_t id)
+motor::motor(u_int32_t id)
 {
 	ID = id;
 
@@ -36,12 +43,92 @@ motor::motor(u_int8_t id)
 int motor::Initialize_Can()
 {
 	VCI_CAN_OBJ command;
-	command.ID = (u_int8_t)0;
+	command.ID = (u_int32_t)0;
 	command.SendType = 1;
 	command.RemoteFlag = 0;
 	command.ExternFlag = 0;
 	command.DataLen = 2;
 	BYTE Data[command.DataLen] = {0x01, 0x00};
+	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
+	return(Send_Command(&command));
+}
+
+int motor::Motor_Disable()
+{
+	VCI_CAN_OBJ command;
+	command.ID = (u_int32_t)0x300 + ID;
+	command.SendType = 1;
+	command.RemoteFlag = 0;
+	command.ExternFlag = 0;
+	command.DataLen = 8;
+	BYTE Data[command.DataLen] = {0x4D, 0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
+	return(Send_Command(&command));
+}
+
+int motor::Motor_Mode(u_int8_t mode)
+{
+	VCI_CAN_OBJ command;
+	command.ID = (u_int32_t)0x300 + ID;
+	command.SendType = 1;
+	command.RemoteFlag = 0;
+	command.ExternFlag = 0;
+	command.DataLen = 8;
+	BYTE Data[command.DataLen] = {0x55, 0x4D, 0x00, 0x00, mode, 0x00, 0x00, 0x00};
+	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
+	return(Send_Command(&command));
+}
+
+int motor::Motor_Enable()
+{
+	VCI_CAN_OBJ command;
+	command.ID = (u_int32_t)0x300 + ID;
+	command.SendType = 1;
+	command.RemoteFlag = 0;
+	command.ExternFlag = 0;
+	command.DataLen = 8;
+	BYTE Data[command.DataLen] = {0x4D, 0x4F, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00};
+	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
+	return(Send_Command(&command));
+}
+
+int motor::Motor_Speed(int32_t speed)
+{
+	VCI_CAN_OBJ command;
+	command.ID = (u_int32_t)0x300 + ID;
+	command.SendType = 1;
+	command.RemoteFlag = 0;
+	command.ExternFlag = 0;
+	command.DataLen = 8;
+	BYTE speed_array[4];
+	memcpy(speed_array, &speed, 4 * sizeof(BYTE));
+	BYTE Data[command.DataLen] = {0x4A, 0x56, 0x00, 0x00, speed_array[0], speed_array[1], speed_array[2], speed_array[3]};
+	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
+	return(Send_Command(&command));
+}
+
+int motor::Motor_Begin()
+{
+	VCI_CAN_OBJ command;
+	command.ID = (u_int32_t)0x300 + ID;
+	command.SendType = 1;
+	command.RemoteFlag = 0;
+	command.ExternFlag = 0;
+	command.DataLen = 4;
+	BYTE Data[command.DataLen] = {0x42, 0x47, 0x00, 0x00};
+	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
+	return(Send_Command(&command));
+}
+
+int motor::Motor_Stop()
+{
+	VCI_CAN_OBJ command;
+	command.ID = (u_int32_t)0x300 + ID;
+	command.SendType = 1;
+	command.RemoteFlag = 0;
+	command.ExternFlag = 0;
+	command.DataLen = 4;
+	BYTE Data[command.DataLen] = {0x53, 0x54, 0x00, 0x00};
 	memcpy(command.Data, Data, command.DataLen * sizeof(BYTE));
 	return(Send_Command(&command));
 }
@@ -235,7 +322,7 @@ main()
 	config.AccCode=0;
 	config.AccMask=0xFFFFFFFF;
 	config.Filter=1;//接收所有帧
-	config.Timing0=0x03;/*波特率125 Kbps  0x03  0x1C*/
+	config.Timing0=0x00;/*波特率125 Kbps  0x03  0x1C*/
 	config.Timing1=0x1C;
 	config.Mode=0;//正常模式		
 	
@@ -267,6 +354,13 @@ main()
 
 	motor motor1(1);
 	motor1.Initialize_Can();
+	motor1.Motor_Disable();
+	motor1.Motor_Mode(2);//选择速度模式
+	motor1.Motor_Enable();
+	motor1.Motor_Speed(128000);
+	motor1.Motor_Begin();
+	usleep(5000000);
+	motor1.Motor_Stop();
 	//需要发送的帧，结构体设置
 	VCI_CAN_OBJ send[1];
 	send[0].ID=0;
